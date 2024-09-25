@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+ 
+</head>
+<body>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/7.12.0/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/earcut.min.js"></script>
+    <!-- подключение физики -->
+  <script src="https://cdn.babylonjs.com/cannon.js"></script>
+
+ 
+<style>
+body, #canvas{
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    overflow-y: hidden;
+    background-color: rgb(19, 19, 121);
+  }
+  
+  #canvas {
+  visibility: hidden;
+  }
+  
+  #gameStartBox{
+  background-color: rgb(238, 216, 15) ;
+  position: absolute;
+  bottom: 300px;
+  left: 30%;
+  display: inline;
+  }
+  
+  #gameOverBox{
+  width: 350px;
+  height: 140px;
+  position: absolute;
+  bottom: 200px;
+  border: none;
+  background-color: rgb(238, 216, 15);
+  right: 38%;
+  top: 40%;
+  }
+  
+  #restartGameBtn{
+  position: absolute;
+  left: 10px;
+  border: 2px solid blue;
+  margin-left: 105px;
+  bottom: 15px;
+  }
+  
+  
+  
+  h2{
+  text-align: center;
+  color: rgb(255, 2, 2);
+  }
+  
+  h1, h3, p{
+  color: rgb(253, 245, 9);
+  text-align: center;
+  }
+  
+  h3, p{
+  position: relative;
+  bottom: 60px;
+  }
+  
+  h1{
+  background-image: linear-gradient(180deg, #00fe37, #2b00ff);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  }
+  
+  #startGameBtn{
+  position: absolute;
+  right: 230px;
+  bottom: 5%;
+  border: none;
+  }
+  
+  
+  #battery{
+  position: absolute;
+  top:15px;
+  left: 20px;
+  visibility: hidden;
+  }
+  
+  
+  #quantityOfLives{
+  position: absolute;
+  top: 7px;
+  left: 8px
+  }
+  
+  .numberOfLife{
+  margin-top: 6px;
+  display: block;
+  }
+  
+  #rulesBox{
+  max-width: 600px;
+  background-color: #ff471e;
+  position: absolute;
+  right: 30%;
+  bottom: 40%;
+  border: none;
+  }
+  
+  
+  #numberCountBox{
+  position: absolute;
+  top:15px;
+  right: 40px;
+  }
+
+</style>
+
+    <canvas id = 'canvas'></canvas>
+
+
+<div id = 'battery'> 
+
+      <img src="assets\battery.png">
+
+<div id = 'quantityOfLives'>
+  <div class = 'numberOfLife'>
+    <img  src="assets\rocketLive.png">
+  </div>
+
+  <div class = 'numberOfLife'>
+    <img  src="assets\rocketLive.png">
+  </div>
+    
+  <div class = 'numberOfLife'>
+    <img  src="assets\rocketLive.png">
+  </div>
+</div>
+
+</div>
+
+
+<div id = 'rulesBox'><h1>COSMODRIVE</h1><br><h3>Game Rules</h3> <button id = 'startGameBtn' aria-label="startGameBtn" onclick="madeVisible()"> <img src="assets\start.png" alt="start"></button>  <h3>Something went wrong and it became known that the spaceship would explode in 13, 12...boom. Keep your spaceship alive by collecting coins and avoiding meteors! Control it using the left - right and up - down buttons</h3> </div>
+
+<div id = 'gameOverBox'>
+  <button id ='restartGameBtn' aria-label="restartGameBtn" onclick=" pageReload()" ><img src="assets\restart.png" alt="restart"></button>
+</div>
+
+<div id = 'numberCountBox'></div>
+
+<script>
+
+// Создание холста
+let canvas = window.document.querySelector('#canvas')
+
+// получение всех элементов экрана
+let gameDisplay = document.getElementById('gameDisplay')
+
+// кнопка запускающая игру
+let startGameBtn = document.getElementById('startGameBtn')
+
+let rulesBox = document.getElementById('rulesBox')
+
+// блок с результатом и перезагрузкой
+let gameOverBox = document.getElementById('gameOverBox')
+gameOverBox.style.display = 'none'
+
+let numberCountBox = document.getElementById('numberCountBox');
+numberCountBox.style.color = 'white';
+numberCountBox.style.fontSize = '40px';
+
+
+let h2Element = document.createElement('h2')
+
+
+// Создание движка
+let engine = new BABYLON.Engine(canvas);
+
+// Создание сцены и присоед. ее к движку
+let scene = new BABYLON.Scene(engine);
+scene.clearColor = new BABYLON.Color3.Black()
+
+//создаем батарею для ракеты
+let battery = document.getElementById('battery')
+
+// Создание камеры
+var camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, 0, -10))
+// откл. управление камерой
+camera.inputs.clear()
+
+//var camera = new BABYLON.ArcRotateCamera("camera", BABYLON.Tools.ToRadians(90), BABYLON.Tools.ToRadians(65), 10, BABYLON.Vector3.Zero(), scene);
+ //camera.attachControl(canvas, true);
+
+
+
+// Рендеринг
+let sceneRender = () => {
+    engine.runRenderLoop(() => {
+        camera.position.z = rocket.getAbsolutePosition().z - 10;
+
+        scene.render();
+    });
+};
+
+let stopSceneRender = () => {
+    engine.stopRenderLoop();
+};
+
+
+
+
+let light = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
+light.intensity = 0.7;
+
+
+let options = {
+  diameter : 1.2
+}
+
+
+// корпус ракеты
+let corpus = BABYLON.MeshBuilder.CreateCylinder('corpus', options, scene)
+corpus.position.y = 2.5
+
+let corpusMat = new BABYLON.StandardMaterial('corpusMat',scene)
+corpusMat.emissiveColor = new BABYLON.Color3.Red()
+corpus.material = corpusMat
+
+// нос ракеты
+let cone = BABYLON.MeshBuilder.CreateCylinder('cone', { height: 0.7, diameterTop : 0, diameterBottom : 1.2}, scene)
+cone.position.y = 3.85
+
+coneMat = new BABYLON.StandardMaterial('coneMat', scene)
+coneMat.diffuseColor = new BABYLON.Color3(0.9, 0.3, 0.8)
+cone.material = coneMat
+
+// ускоритель
+let accelerator  = BABYLON.MeshBuilder.CreateCylinder('accelerator', { height : 0.8, diameterTop : 0.3, diameterBottom : 0.8}, scene)
+accelerator.position.y = 1.3
+
+
+let triangleVectors = [
+   new BABYLON.Vector3(0, 1, 0),
+   new BABYLON.Vector3(1, 0, 0),
+   new BABYLON.Vector3(0, 0, 1)
+]
+
+let triangleOptions = {
+  shape : triangleVectors,
+  sideOrientation : BABYLON.Mesh.DOUBLESIDE,
+  depth : 0.1
+}
+
+let stand1 = BABYLON.MeshBuilder.CreatePolygon( 'stand1', triangleOptions, scene)
+stand1.position.x = 4
+
+stand1.rotation.x = BABYLON.Tools.ToRadians(90)
+stand1.rotation.y = BABYLON.Tools.ToRadians(180)
+stand1.position = new BABYLON.Vector3(1,2,0)
+
+
+let stand2 = stand1.clone('stand2')
+stand2.rotation.x = BABYLON.Tools.ToRadians(90)
+stand2.rotation.y = BABYLON.Tools.ToRadians(-180)
+stand2.rotation.z = BABYLON.Tools.ToRadians(180)
+stand2.position = new BABYLON.Vector3(-1, 2, 0)
+
+let stand3 = stand1.clone('stand3')
+stand3.rotation.x = BABYLON.Tools.ToRadians(90)
+stand3.rotation.y = BABYLON.Tools.ToRadians(-180)
+stand3.rotation.z = BABYLON.Tools.ToRadians(90)
+stand3.position = new BABYLON.Vector3(0, 2, 1)
+
+let stand4 = stand1.clone('stand4')
+stand4.rotation.x = BABYLON.Tools.ToRadians(90)
+stand4.rotation.y = BABYLON.Tools.ToRadians(-180)
+stand4.rotation.z = BABYLON.Tools.ToRadians(-90)
+stand4.position = new BABYLON.Vector3(0, 2, -1)
+
+let standMat = new BABYLON.StandardMaterial('standMat', scene)
+standMat.emissiveColor = new BABYLON.Color3.Yellow()
+
+let stands = [stand1, stand2, stand3, stand4]
+
+for (let i = 0; i < stands.length; i++) {
+  (stands[i]).material = standMat
+}
+
+// объединение частей в одну ракету
+let rocket =  BABYLON.Mesh.MergeMeshes([cone, corpus, accelerator, stand1, stand2, stand3, stand4], true, false, null, false, true )
+
+rocket.position = new BABYLON.Vector3(0, 0, 0)
+
+
+    
+    // Переворачиваем ракету на 90 градусов
+    rocket.rotation.x = BABYLON.Tools.ToRadians(90)
+
+
+scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
+rocket.physicsImpostor = new BABYLON.PhysicsImpostor(
+//передаем объект
+rocket,
+//тип имитатора физики
+BABYLON.PhysicsImpostor.MeshImpostor,
+//набор физ.свойств
+{
+  mass:1
+},
+scene
+)
+rocket.physicsImpostor.setLinearVelocity( new BABYLON.Vector3(0, 0, 0))
+
+
+// события (управление объектом, логика игры)
+let movingRight = false; // флаг движения вправо
+let movingLeft = false; // флаг движения влево
+let movingUp = false;
+let movingDown = false;
+
+// Функция обновления, которая будет вызываться в каждом кадре
+scene.onBeforeRenderObservable.add(() => {
+  // Двигаем вправо
+  if (movingRight && rocket.position.x < 6) {
+          rocket.position.x += 0.25; // Двигаемся вправо
+      }
+  
+  // Двигаем влево
+  if (movingLeft && rocket.position.x > -6) {
+          rocket.position.x -= 0.25; // Двигаемся влево
+      
+  }
+
+  if (movingUp && rocket.position.y < 6) {
+          rocket.position.y += 0.25; // Двигаемся вправо
+      }
+  
+  // Двигаем влево
+  if (movingDown && rocket.position.y > -6) {
+          rocket.position.y -= 0.25; // Двигаемся влево
+      
+  }
+
+});
+
+// Обработчик нажатия клавиш
+document.addEventListener('keydown', (event) => {
+  switch (event.key) {
+      case 'ArrowRight': // Стрелка вправо
+          movingRight = true;
+          break;
+      case 'ArrowLeft': // Стрелка влево
+          movingLeft = true;
+          break;
+
+      case 'ArrowUp' : 
+      movingUp = true;
+      break;
+
+      case 'ArrowDown' :
+        movingDown = true;
+        break;
+  }
+});
+
+// Обработчик отпускания клавиш
+document.addEventListener('keyup', (event) => {
+  switch (event.key) {
+      case 'ArrowRight':
+          movingRight = false;
+          break;
+      case 'ArrowLeft':
+          movingLeft = false;
+          break;
+
+      case 'ArrowUp' : 
+          movingUp = false;
+          break;
+
+      case 'ArrowDown' :
+          movingDown = false;
+          break;
+  }
+});
+
+
+
+
+
+let meteorRow = 310;
+let meteorArr = [];
+let meteorTexture = [];
+
+// Функция для создания метеора
+function createMeteor() {
+
+  let meteorMat = new BABYLON.StandardMaterial('meteorMat', scene)
+  meteorMat.diffuseTexture = meteorTexture = new BABYLON.Texture('assets/meteor.png')
+
+
+let meteor = BABYLON.MeshBuilder.CreateSphere('meteor', {diameter : 3}, scene)
+meteor.material = meteorMat
+
+
+    scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
+
+    meteor.physicsImpostor = new BABYLON.PhysicsImpostor(
+        meteor,
+        BABYLON.PhysicsImpostor.SphereImpostor,
+        { mass: 0.00001 },
+        scene
+    );
+
+    meteor.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, 0, -180));
+
+
+    meteor.position.x = Math.random() * 48 - 24;
+    meteor.position.y = Math.random() * 48 - 24;
+    meteor.position.z = meteorRow;
+
+
+    meteorArr.push(meteor);
+}
+
+
+function createRowOfMeteor() {
+    for (let i = 0; i < 9; i++) {
+        createMeteor();
+    }
+}
+
+
+
+
+
+
+let coinRow = 300;
+let coinArr = [];
+
+// Функция для создания метеора
+function createCoin() {
+
+  let coinMat = new BABYLON.StandardMaterial('coinMat', scene)
+
+let coinTexture = new BABYLON.Texture('assets/coin.png')
+coinMat.diffuseTexture = coinTexture
+
+
+let coin = BABYLON.MeshBuilder.CreateCylinder('coin', {height: 0.25 , diameter : 2}, scene)
+coin.material = coinMat
+
+coin.rotation.z = BABYLON.Tools.ToRadians(-30)
+coin.rotation.x = BABYLON.Tools.ToRadians(90)
+
+
+    scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
+
+    coin.physicsImpostor = new BABYLON.PhysicsImpostor(
+        coin,
+        BABYLON.PhysicsImpostor.SphereImpostor,
+        { mass: 0.00001 },
+        scene
+    );
+
+    coin.physicsImpostor.setLinearVelocity(new BABYLON.Vector3(0, 0, -180));
+
+
+    scene.registerBeforeRender(function() {
+      coin.rotation.y +=BABYLON.Tools.ToRadians(60)
+});
+
+
+    coin.position.x = Math.random() * 48 - 24;
+    coin.position.y = Math.random() * 48 - 24;
+    coin.position.z = coinRow;
+
+    coinArr.push(coin);
+}
+
+// Функция для создания ряда метеоров
+function createRowOfCoin() {
+    for (let s = 0; s < 8; s++) {
+        createCoin();
+    }
+}
+
+
+function startGame() {
+let liveIndex = -1
+let timeIndex = 13; // Инициализация времени
+let rocketLive = document.querySelectorAll('.numberOfLife')
+let collisionCount = 0; // Инициализация переменной для подсчета столкновений
+let collisionFlags = new Array(meteorArr.length).fill(false);
+let h2Element = document.createElement('h2'); // Создание элемента для отображения результата
+
+
+
+// Обновление времени каждую секунду
+setInterval(function() {
+  if (timeIndex > 0 && liveIndex<3) {
+    timeIndex--;
+    numberCountBox.textContent = timeIndex;
+    //numberCountBox.textContent = collisionCount; // Обновление счетчика столкновений
+
+  }
+
+}, 1000);
+
+
+function stopGame(){
+      
+
+      if (liveIndex < 3 && timeIndex<=0 ) {
+       h2Element.textContent = `You win! ${collisionCount} coins`;
+     //обновление игры с созраниением результатов количества столкновений с монетками
+      } else {
+       
+        h2Element.textContent = `You lose! ${collisionCount} coins`;
+
+      }
+      stopSceneRender();
+      gameOverBox.style.display = 'block';
+      gameOverBox.appendChild(h2Element);
+    }
+
+
+
+function printValue() {
+    liveIndex++
+
+   if(liveIndex < 3 && timeIndex > 0){
+    rocketLive[liveIndex].style.visibility = 'hidden'
+    console.log(`liveIndex : ${liveIndex}`)
+
+   }else{
+    stopGame()
+   }
+}
+
+// Интервал для вывода значения
+const interval = 3700; // 4 секунды
+
+// Асинхронная функция для задержки
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function run() {
+  while (true) {
+    printValue();
+    await delay(interval); // Пауза на 4 секунды
+  }
+}
+
+// Запускаем асинхронную функцию
+
+  run();
+
+
+
+
+
+function meshCollision() {
+
+  scene.registerBeforeRender(() => {
+    let firstValue = collisionCount; // Инициализация firstValue
+
+   // удаление рокетлайв каждые 4 секунды
+
+
+    // Проверка столкновений
+    for (let i = 0; i < meteorArr.length; i++) {
+      for (let i2 = 0; i2 < coinArr.length; i2++) {
+
+
+        if (rocket.intersectsMesh(meteorArr[i], true) && !collisionFlags[i]) {
+          meteorArr[i].dispose();
+          if(liveIndex<2){
+          liveIndex++
+          rocketLive[liveIndex].style.visibility = 'hidden'
+          console.log(`liveIndex of meteor ${liveIndex}`)
+          collisionFlags[i] = true;
+          }else{
+             stopGame()
+          }
+        }
+
+
+
+        if (rocket.intersectsMesh(coinArr[i2], true) && !collisionFlags[i2]) {
+          coinArr[i2].dispose();
+          if(liveIndex>-1){
+           rocketLive[liveIndex].style.visibility = 'visible'
+          liveIndex--
+         console.log(`liveIndex of coin ${liveIndex}`)
+
+          collisionCount++; // Увеличение счетчика при столкновении с монетой
+          collisionFlags[i2] = true;
+          }
+        }
+      }
+    }
+
+    // Проверка состояния игры после всех столкновений
+    if (timeIndex <= 0 ) {
+ 
+      stopGame()
+
+    }
+  });
+}
+
+
+// Функция для создания ряда метеоров
+
+
+
+
+meshCollision();
+
+
+}
+
+
+
+
+
+
+function madeVisible() {
+   rulesBox.style.display = 'none'
+    startGameBtn.style.display = 'none';
+    canvas.style.visibility = 'visible';
+    battery.style.visibility = 'visible';
+
+    // Рендеринг сцены
+    sceneRender();
+
+    setInterval(createRowOfMeteor, 400);
+    setInterval(createRowOfCoin, 400);
+
+    setTimeout(startGame, 2000);
+}
+
+function pageReload() {
+    window.location.reload();
+}
+
+
+// Делаем сцену адаптивной
+window.addEventListener("resize", function () {
+        engine.resize();
+      });
+
+
+
+</script>
+
+</body>
+</html>
